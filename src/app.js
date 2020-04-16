@@ -1,76 +1,85 @@
 const express = require("express");
 const cors = require("cors");
-const { uuid } = require("uuidv4");
+const { uuid, isUuid } = require("uuidv4");
 
 const app = express();
 
 app.use(express.json());
 app.use(cors());
 
-const repository = [];
+const repositories = [];
 
-app.get("/repository", (request, response) => {
+function validateRepositoryId(request, response, next) {
+  const { id } = request.params;
+  if (!isUuid(id)) {
+    return response.status(400).json({ error: "Invalid repository ID." });
+  }
+
+  return next();
+}
+
+app.use("/repositories/:id", validateRepositoryId);
+
+app.get("/repositories", (request, response) => {
+  return response.json(repositories);
+});
+
+app.post("/repositories", (request, response) => {
+  const { title, url, techs } = request.body;
+  const repository = { id: uuid(), title, url, techs, likes: 0 };
+  repositories.push(repository);
   return response.json(repository);
 });
 
-app.post("/repository", (request, response) => {
-  const { title, url, techs } = request.body;
-  const repositorie = { id: uuid(), title, url, techs, likes: 0 };
-  repository.push(repositorie);
-  return response.json(repositorie);
-});
-
-app.put("/repository/:id", (request, response) => {
+app.put("/repositories/:id", (request, response) => {
   const { id } = request.params;
   const { title, url, techs } = request.body;
-  const repositorieIndex = repository.findIndex(
-    (repositorie) => repositorie.id === id
+  const repositoryIndex = repositories.findIndex(
+    (repository) => repository.id === id
   );
-  if (repositorieIndex < 0) {
+  if (repositoryIndex < 0) {
     return response
       .status(400)
-      .json({ error: "Repositorie not found. Try again!" });
+      .json({ error: "Repository not found. Try again!" });
   }
-  const like = repository[repositorieIndex].likes;
-  const repositorie = { id, title, url, techs, likes: like };
-  repository[repositorieIndex] = repositorie;
+  const like = repositories[repositoryIndex].likes;
+  const repository = { id, title, url, techs, likes: like };
+  repositories[repositoryIndex] = repository;
 
-  return response.json(repositorie);
+  return response.json(repository);
 });
 
-app.delete("/repository/:id", (req, res) => {
-  const { id } = req.params;
-  const repositorieIndex = repository.findIndex(
-    (repositorie) => repositorie.id === id
-  );
-  if (repositorieIndex < 0) {
-    return res.status(400).json({ error: "Repositorie Not Found" });
-  }
-
-  repository.splice(repositorieIndex, 1);
-
-  return res.status(204).send();
-});
-
-app.post("/repository/:id/like", (request, response) => {
+app.delete("/repositories/:id", (request, response) => {
   const { id } = request.params;
-  const repositorieIndex = repository.findIndex(
-    (repositorie) => repositorie.id === id
+  const repositoryIndex = repositories.findIndex(
+    (repository) => repository.id === id
   );
-  if (repositorieIndex < 0) {
+  if (repositoryIndex < 0) {
+    return res.status(400).json({ error: "Repository Not Found" });
+  }
+
+  repositories.splice(repositoryIndex, 1);
+
+  return response.status(204).send();
+});
+
+app.post("/repositories/:id/like", (request, response) => {
+  const { id } = request.params;
+  const repositoryIndex = repositories.findIndex(
+    (repository) => repository.id === id
+  );
+  const repository = repositories.find((repository) => repository.id === id);
+
+  if (repositoryIndex < 0) {
     return response
       .status(400)
       .json({ error: "Project not found. Try again!" });
   }
-  const title = repository[repositorieIndex].title;
-  const techs = repository[repositorieIndex].techs;
-  const url = repository[repositorieIndex].url;
-  const like = repository[repositorieIndex].likes;
-  const nLike = Number(like) + 1;
-  const repositorie = { id, title, url, techs, likes: nLike };
-  repository[repositorieIndex] = repositorie;
 
-  return response.json(repositorie);
+  repository.likes = repository.likes + 1;
+  repositories[repositoryIndex] = repository;
+
+  return response.json(repository);
 });
 
 module.exports = app;
